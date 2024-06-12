@@ -1,0 +1,449 @@
+<html>
+<body>
+
+<div id="divUi">
+
+	<h3>Huffman Encoder/Decoder</h3>
+
+	<p>
+		Enter a message to encode and click the Encode button
+		to generate a Huffman tree and then use that tree
+		to convert the message into bits.
+		Then click the Decode button to decode the message
+		from the specified bits and Huffman tree definition.
+		(It might be a good idea to click the Clear button in between,
+		so that it can be more easily shown that it's actually doing the decoding.)
+	</p>
+
+	<div>
+		<label>Message to Encode:</label>
+		<button onclick="buttonMessageToEncodeClear_Clicked()">Clear</button>
+		<button onclick="buttonMessageToEncodeLoadDemo_Clicked()">Load Demo</button>
+		<br />
+		<textarea id="textareaMessageToEncode" cols="80" rows="8"></textarea>
+	</div>
+
+	<div>
+		<button onclick="buttonEncode_Clicked()">v Encode v</button>
+		<button onclick="buttonDecode_Clicked()">^ Decode ^</button>
+	</div>
+
+	<div>
+		<label>Huffman Tree as JSON:</label>
+		<br />
+		<textarea id="textareaHuffmanTreeAsJson" cols="80" rows="8" wrap="off"></textarea>
+	</div>
+
+	<div>
+		<label>Message Encoded:</label>
+		<br />
+		<textarea id="textareaMessageEncoded" cols="80" rows="8"></textarea>
+	</div>
+
+	
+</div>
+
+<script type='text/javascript'>
+
+// UI event handlers.
+
+function buttonDecode_Clicked()
+{
+	var d = document;
+
+	var textareaHuffmanTreeAsJson =
+		d.getElementById("textareaHuffmanTreeAsJson");
+	var huffmanTreeAsJson = textareaHuffmanTreeAsJson.value;
+
+	var textareaMessageEncoded =
+		d.getElementById("textareaMessageEncoded");
+	var messageEncodedAsBitString =
+		textareaMessageEncoded.value;
+
+	var huffmanEncoding =
+		HuffmanEncoding.fromTreeAsJson(huffmanTreeAsJson);
+
+	var messageDecoded =
+		huffmanEncoding.decodeMessageFromBitString
+		(
+			messageEncodedAsBitString
+		);
+
+	var textareaMessageToEncode =
+		d.getElementById("textareaMessageToEncode");
+	textareaMessageToEncode.value = messageDecoded;
+}
+
+function buttonEncode_Clicked()
+{
+	var d = document;
+
+	var textareaMessageToEncode =
+		d.getElementById("textareaMessageToEncode");
+	var messageToEncode = textareaMessageToEncode.value;
+
+	var huffmanEncoding = new HuffmanEncoding();
+	huffmanEncoding.encodeMessageIntoBits(messageToEncode);
+
+	var huffmanTreeAsJson = huffmanEncoding.treeAsJson();
+	var messageEncodedAsBitString =
+		huffmanEncoding.bitsEncoded.join("");
+
+	var textareaHuffmanTreeAsJson =
+		d.getElementById("textareaHuffmanTreeAsJson");
+	textareaHuffmanTreeAsJson.value =
+		huffmanTreeAsJson;
+
+	var textareaMessageEncoded =
+		d.getElementById("textareaMessageEncoded");
+	textareaMessageEncoded.value =
+		messageEncodedAsBitString;
+}
+
+function buttonMessageToEncodeClear_Clicked()
+{
+	var d = document;
+
+	var textareaMessageToEncode =
+		d.getElementById("textareaMessageToEncode");
+
+	textareaMessageToEncode.value = "";
+}
+
+function buttonMessageToEncodeLoadDemo_Clicked()
+{
+	var messageDemoAsLines =
+	[
+		"Your attention please, Mister Huffman has left the building!",
+		"Fifty million Huffman fans can't be wrong!",
+		"A hunka hunka burnin' Huffman!",
+		"The quick red Huffman jumped over the lazy dogs.",
+		"Something something Huffman something king."
+	];
+
+	var messageDemo = messageDemoAsLines.join("\n");
+
+	var d = document;
+
+	var textareaMessageToEncode =
+		d.getElementById("textareaMessageToEncode");
+
+	textareaMessageToEncode.value = messageDemo;
+}
+
+// Classes.
+
+class HuffmanEncoding
+{
+	static fromTreeAsJson(huffmanTreeAsJson)
+	{
+		var treeRoot = HuffmanTreeNode.fromJson(huffmanTreeAsJson);
+		var returnValue = new HuffmanEncoding();
+		returnValue.treeRoot = treeRoot;
+		return returnValue;
+	}
+
+	decodeMessageFromBitString(bitsToDecodeAsString)
+	{
+		var bitsToDecode = bitsToDecodeAsString.split("");
+
+		var messageDecoded = "";
+ 
+		var treeNodeCurrent = this.treeRoot;
+ 
+		for (var b = 0; b < bitsToDecode.length; b++)
+		{
+			var bitCurrent = bitsToDecode[b];
+			treeNodeCurrent = treeNodeCurrent.children[bitCurrent];
+ 
+			if (treeNodeCurrent.children.length == 0)
+			{
+				messageDecoded += treeNodeCurrent.symbol;
+				treeNodeCurrent = this.treeRoot;
+			}
+		}
+ 
+		return messageDecoded;
+	}
+ 
+	encodeMessageIntoBits(messageToEncode)
+	{
+		var numberOfUniqueSymbols = 0;
+		var symbolToFrequencyLookup = [];
+ 
+		for (var i = 0; i < messageToEncode.length; i++)
+		{
+			var symbol = messageToEncode[i];
+			var frequencyOfSymbol = symbolToFrequencyLookup[symbol];
+			if (frequencyOfSymbol == null)
+			{
+				numberOfUniqueSymbols++;
+				frequencyOfSymbol = 0;
+			}
+			frequencyOfSymbol++;
+			symbolToFrequencyLookup[symbol] = frequencyOfSymbol;
+		}
+ 
+		var treeNodesForSymbols = [];
+		var symbolToTreeNodeLookup = [];
+ 
+		for (var symbol in symbolToFrequencyLookup)
+		{
+			var frequencyOfSymbol = symbolToFrequencyLookup[symbol];
+			var treeNodeForSymbol = new HuffmanTreeNode
+			(
+				symbol,
+				frequencyOfSymbol,
+				[] // children
+			);
+ 
+			symbolToTreeNodeLookup[symbol] = treeNodeForSymbol;
+ 
+			var i;
+			for (i = 0; i < treeNodesForSymbols.length; i++)
+			{
+				var treeNodeExisting = treeNodesForSymbols[i];
+				if (frequencyOfSymbol <= treeNodeExisting.frequency)
+				{
+					break;
+				}
+			}
+ 
+			treeNodesForSymbols.splice(i, 0, treeNodeForSymbol);
+		}
+ 
+		var treeNodeParent;
+ 
+		while (treeNodesForSymbols.length > 1)
+		{
+			var treeNodesWithFrequenciesLeast = 
+			[
+				treeNodesForSymbols[0],
+				treeNodesForSymbols[1]
+			];
+ 
+			treeNodesForSymbols.splice(0, 1);
+			treeNodesForSymbols.splice(0, 1);
+ 
+			var symbolsCombined = 
+				treeNodesWithFrequenciesLeast[0].symbol
+				+ treeNodesWithFrequenciesLeast[1].symbol;
+ 
+			var sumOfFrequencies = 
+				treeNodesWithFrequenciesLeast[0].frequency
+				+ treeNodesWithFrequenciesLeast[1].frequency;
+ 
+			treeNodeParent = new HuffmanTreeNode
+			(
+				symbolsCombined, // symbol
+				sumOfFrequencies, // frequency
+				treeNodesWithFrequenciesLeast // children
+			)
+ 
+			var i;
+			for (i = 0; i < treeNodesForSymbols.length; i++)
+			{
+				var treeNodeExisting = treeNodesForSymbols[i];
+				if (sumOfFrequencies <= treeNodeExisting.frequency)
+				{
+					break;
+				}
+			}   
+			treeNodesForSymbols.splice(i, 0, treeNodeParent);   
+		}
+ 
+		this.treeRoot = treeNodeParent;
+ 
+		var bitsEncoded = [];
+		var bitsForSymbol = [];
+ 
+		for (var i = 0; i < messageToEncode.length; i++)
+		{
+			var symbol = messageToEncode[i];
+			var treeNodeCurrent = symbolToTreeNodeLookup[symbol];
+ 
+			bitsForSymbol.length = 0;
+			while (treeNodeCurrent.parent != null)
+			{
+				var parent = treeNodeCurrent.parent;
+				var indexWithinParent = parent.children.indexOf
+				(
+					treeNodeCurrent
+				);
+				bitsForSymbol.splice(0, 0, indexWithinParent);
+				treeNodeCurrent = treeNodeCurrent.parent;
+			}   
+ 
+			for (var b = 0; b < bitsForSymbol.length; b++)
+			{
+				var bitCurrent = bitsForSymbol[b];
+				bitsEncoded.push(bitCurrent);
+			}
+		}
+ 
+		this.bitsEncoded = bitsEncoded;
+ 
+		return this.bitsEncoded;
+	}
+ 
+	toString()
+	{
+		var treeAsString = this.treeRoot.toString("");
+ 
+		var bitsAsString = "";
+		for (var b = 0; b < this.bitsEncoded.length; b++)
+		{
+			var bitCurrent = this.bitsEncoded[b];
+			bitsAsString += bitCurrent;
+		}
+ 
+		var returnValue = treeAsString;
+		returnValue += bitsAsString;
+ 
+		return returnValue;
+	}
+
+	treeAsJson()
+	{
+		return this.treeRoot.toJson();
+	}
+}
+ 
+class HuffmanTreeNode
+{
+	constructor(symbol, frequency, children)
+	{
+		this.symbol = symbol;
+		this.frequency = frequency;
+		this.children = children;
+
+		for (var i = 0; i < this.children.length; i++)
+		{
+			var child = this.children[i];
+			child.parent = this;
+		}
+	}
+
+	codeAsString()
+	{
+		var codeSoFar = "";
+ 
+		var nodeCurrent = this;
+ 
+		while (nodeCurrent != null)
+		{
+			var nodeParent = nodeCurrent.parent;
+ 
+			if (nodeParent != null)
+			{
+				var bit = nodeParent.children.indexOf(nodeCurrent);
+			 
+				codeSoFar = "" + bit + codeSoFar;
+			}
+ 
+			nodeCurrent = nodeParent;
+		}
+ 
+		return codeSoFar;
+	}
+ 
+	toString(indentSoFar)
+	{
+		var returnValue = 
+			indentSoFar
+			+ "{"
+			+ "symbol='" + this.symbol + "' "
+			+ "frequency='" + this.frequency + "' ";
+ 
+		if (this.children.length == 0)
+		{
+			returnValue = 
+				returnValue + "code='" + this.codeAsString() + "' ";
+		}
+ 
+		returnValue = returnValue + "}" + "<br />";
+ 
+		for (var i = 0; i < this.children.length; i++)
+		{
+			var child = this.children[i];
+			returnValue +=
+				child.toString
+				(
+					indentSoFar
+					+ "&nbsp;&nbsp;&nbsp;&nbsp;"
+				);
+		}
+ 
+		return returnValue;
+	}
+
+	// Json.
+
+	static fromJson(nodeAndDescendantsAsJson)
+	{
+		var nodeAndDescendantsDeserializedWithoutPrototypes =
+			JSON.parse(nodeAndDescendantsAsJson);
+
+		var nodeAndDescendants =
+			HuffmanTreeNode.setPrototypesOnInstanceAfterDeserialization
+			(
+				nodeAndDescendantsDeserializedWithoutPrototypes
+			);
+
+		nodeAndDescendants.parentFieldsRestoreOnDescendants();
+
+		return nodeAndDescendants;
+	}
+
+	parentFieldsRestoreOnDescendants()
+	{
+		this.parent = null;
+
+		var thisAsParent = this;
+
+		this.children.forEach
+		(
+			child =>
+			{
+				child.parent = thisAsParent;
+				child.parentFieldsRestoreOnDescendants();
+			}
+		);
+	}
+
+	static setPrototypesOnInstanceAfterDeserialization(nodeWithoutPrototypes)
+	{
+		var nodeWithPrototypes = nodeWithoutPrototypes;
+		Object.setPrototypeOf(nodeWithPrototypes, HuffmanTreeNode.prototype);
+		nodeWithPrototypes.children.forEach
+		(
+			x => HuffmanTreeNode.setPrototypesOnInstanceAfterDeserialization(x)
+		)
+		return nodeWithPrototypes;
+	}
+
+	toJson()
+	{
+		this.toJson_ParentFieldsRemoveFromThisAndDescendants();
+
+		var thisAsJson = JSON.stringify(this, null, 4);
+
+		this.parentFieldsRestoreOnDescendants();
+
+		return thisAsJson;
+	}
+
+	toJson_ParentFieldsRemoveFromThisAndDescendants()
+	{
+		// The parent field makes the structure circular,
+		// which prevents serialization with JSON.stringify().
+
+		delete this.parent;
+		this.children.forEach(x => x.toJson_ParentFieldsRemoveFromThisAndDescendants() );
+	}
+
+}
+ 
+</script>
+</body>
+</html>
